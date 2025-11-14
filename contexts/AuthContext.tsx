@@ -1,96 +1,167 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
-import type { User } from "@/types/User"
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { jwtDecode } from "jwt-decode";
+import type { User } from "@/types/User";
 
 interface AuthContextType {
-  user: User | null
-  login: (email: string, password: string) => Promise<void>
-  register: (name: string, email: string, password: string) => Promise<void>
-  logout: () => void
-  updateProfile: (updates: Partial<User>) => void
-  isLoading: boolean
+  user: User | null;
+  login: (email: string, password: string) => Promise<void>;
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    careerObjective: string
+  ) => Promise<void>;
+  logout: () => void;
+  updateProfile: (updates: Partial<User>) => void;
+  isLoading: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const API_URL = "http://localhost:8080";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // ------------------------------------------------------
+  // 🔄 Carrega user + token do localStorage ao iniciar
+  // ------------------------------------------------------
   useEffect(() => {
-    // Load user from localStorage on mount
-    const storedUser = localStorage.getItem("nova_user")
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
-    }
-    setIsLoading(false)
-  }, [])
+    const token = localStorage.getItem("token");
 
-  const login = async (email: string, password: string) => {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    if (token) {
+      try {
+        const decoded: any = jwtDecode(token);
 
-    // Mock validation
-    if (email && password) {
-      const mockUser: User = {
-        id: "1",
-        name: email.split("@")[0],
-        email,
-        goals: [],
-        skills: [],
-        careerObjective: "",
-        createdAt: new Date(),
+        setUser({
+          id: decoded.id ?? "",
+          name: decoded.name ?? decoded.sub?.split("@")[0] ?? "",
+          email: decoded.sub,
+          createdAt: new Date(),
+          goals: [],
+          skills: [],
+          careerObjective: decoded.careerObjective ?? "",
+        });
+      } catch (err) {
+        console.error("Erro ao decodificar token:", err);
+        localStorage.removeItem("token");
       }
-      setUser(mockUser)
-      localStorage.setItem("nova_user", JSON.stringify(mockUser))
-    } else {
-      throw new Error("Credenciais inválidas")
     }
-  }
 
-  const register = async (name: string, email: string, password: string) => {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    setIsLoading(false);
+  }, []);
 
-    const newUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      name,
-      email,
+  // ------------------------------------------------------
+  // 🔐 LOGIN — POST /login
+  // ------------------------------------------------------
+  const login = async (email: string, password: string) => {
+    const response = await fetch(`${API_URL}/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) throw new Error("Credenciais inválidas");
+
+    const data = await response.json(); // { token, username }
+
+    localStorage.setItem("token", data.token);
+
+    const decoded: any = jwtDecode(data.token);
+
+    const loggedUser: User = {
+      id: decoded.id ?? "",
+      name: decoded.name ?? decoded.sub?.split("@")[0] ?? "",
+      email: decoded.sub,
       goals: [],
       skills: [],
-      careerObjective: "",
+      careerObjective: decoded.careerObjective ?? "",
       createdAt: new Date(),
-    }
-    setUser(newUser)
-    localStorage.setItem("nova_user", JSON.stringify(newUser))
-  }
+    };
 
+    setUser(loggedUser);
+  };
+
+  // ------------------------------------------------------
+  // 📝 REGISTER — POST /register
+  // (agora compatível com o backend Oracle)
+  // ------------------------------------------------------
+  const register = async (
+    name: string,
+    email: string,
+    password: string,
+    careerObjective: string
+  ) => {
+    const response = await fetch(`${API_URL}/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nome: name,                       // ✔ correto para o model Oracle
+        email,
+        password,
+        professionalGoal: careerObjective // ✔ correto para a coluna Oracle
+      }),
+    });
+
+    if (!response.ok) throw new Error("Erro ao registrar");
+
+    const data = await response.json(); // { token, username }
+
+    localStorage.setItem("token", data.token);
+
+    const decoded: any = jwtDecode(data.token);
+
+    const newUser: User = {
+      id: decoded.id ?? "",
+      name,
+      email,
+      careerObjective,
+      goals: [],
+      skills: [],
+      createdAt: new Date(),
+    };
+
+    setUser(newUser);
+  };
+
+  // ------------------------------------------------------
+  // 🔧 Atualização local do perfil
+  // ------------------------------------------------------
   const updateProfile = (updates: Partial<User>) => {
-    if (!user) return
+    if (!user) return;
+    const updated = { ...user, ...updates };
+    setUser(updated);
+  };
 
-    const updatedUser = { ...user, ...updates }
-    setUser(updatedUser)
-    localStorage.setItem("nova_user", JSON.stringify(updatedUser))
-  }
-
+  // ------------------------------------------------------
+  // 🚪 LOGOUT
+  // ------------------------------------------------------
   const logout = () => {
-    setUser(null)
-    localStorage.removeItem("nova_user")
-  }
+    setUser(null);
+    localStorage.removeItem("token");
+  };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateProfile, isLoading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        register,
+        logout,
+        updateProfile,
+        isLoading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
-  )
+  );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
-  }
-  return context
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
+  return ctx;
 }
