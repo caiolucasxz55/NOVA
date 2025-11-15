@@ -5,11 +5,12 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Target, Lightbulb, User, Menu, LogOut } from "lucide-react"
+import { Target, Lightbulb, User, Menu, LogOut, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/AuthContext"
 
 const navItems = [
+  { href: "/chatbot", label: "NOVA", icon: Sparkles },
   { href: "/dashboard", label: "Metas", icon: Target },
   { href: "/tips", label: "Dicas", icon: Lightbulb },
   { href: "/profile", label: "Perfil", icon: User },

@@ -39,7 +39,7 @@ export default function LandingPage() {
           </span>
         </div>
         <div className="flex gap-3">
-          <Link href="/login">
+          <Link href="/login" prefetch={false}>
             <Button variant="ghost" size="lg" className="font-medium">
               Entrar
             </Button>

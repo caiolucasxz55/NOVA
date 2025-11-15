@@ -1,7 +1,6 @@
-"use client";
+ "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { jwtDecode } from "jwt-decode";
 import type { User } from "@/types/User";
 
 interface AuthContextType {
@@ -27,38 +26,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   // ------------------------------------------------------
-  // 🔄 Carrega user + token do localStorage ao iniciar
+  // 🔄 Carrega user do localStorage ao iniciar
   // ------------------------------------------------------
   useEffect(() => {
+    const storedUser = localStorage.getItem("user");
     const token = localStorage.getItem("token");
 
-    if (token) {
-      try {
-        const decoded: any = jwtDecode(token);
-
-        setUser({
-          id: decoded.id ?? "",
-          name: decoded.name ?? decoded.sub?.split("@")[0] ?? "",
-          email: decoded.sub,
-          createdAt: new Date(),
-          goals: [],
-          skills: [],
-          careerObjective: decoded.careerObjective ?? "",
-        });
-      } catch (err) {
-        console.error("Erro ao decodificar token:", err);
-        localStorage.removeItem("token");
-      }
+    if (storedUser && token) {
+      setUser(JSON.parse(storedUser));
+    } else {
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
     }
 
     setIsLoading(false);
   }, []);
 
   // ------------------------------------------------------
-  // 🔐 LOGIN — POST /login
+  // 🔐 LOGIN — POST /auth/login
   // ------------------------------------------------------
   const login = async (email: string, password: string) => {
-    const response = await fetch(`${API_URL}/login`, {
+    const response = await fetch(`${API_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -66,28 +54,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (!response.ok) throw new Error("Credenciais inválidas");
 
-    const data = await response.json(); // { token, username }
+    const data = await response.json();
 
-    localStorage.setItem("token", data.token);
+    // token vem assim: data.tokenResponse.token
+    const token = data.token.token;
 
-    const decoded: any = jwtDecode(data.token);
+    localStorage.setItem("token", token);
 
     const loggedUser: User = {
-      id: decoded.id ?? "",
-      name: decoded.name ?? decoded.sub?.split("@")[0] ?? "",
-      email: decoded.sub,
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      careerObjective: data.professionalGoal,
       goals: [],
       skills: [],
-      careerObjective: decoded.careerObjective ?? "",
+      role: data.role,
       createdAt: new Date(),
     };
 
     setUser(loggedUser);
+    localStorage.setItem("user", JSON.stringify(loggedUser));
   };
 
   // ------------------------------------------------------
-  // 📝 REGISTER — POST /register
-  // (agora compatível com o backend Oracle)
+  // 📝 REGISTER — POST /auth/register
   // ------------------------------------------------------
   const register = async (
     name: string,
@@ -95,36 +85,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string,
     careerObjective: string
   ) => {
-    const response = await fetch(`${API_URL}/register`, {
+    const response = await fetch(`${API_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        nome: name,                       // ✔ correto para o model Oracle
+        nome: name,
         email,
         password,
-        professionalGoal: careerObjective // ✔ correto para a coluna Oracle
+        professionalGoal: careerObjective,
       }),
     });
 
     if (!response.ok) throw new Error("Erro ao registrar");
 
-    const data = await response.json(); // { token, username }
+    const data = await response.json();
 
-    localStorage.setItem("token", data.token);
-
-    const decoded: any = jwtDecode(data.token);
+    // token também está dentro de data.token.token
+    const token = data.token.token;
+    localStorage.setItem("token", token);
 
     const newUser: User = {
-      id: decoded.id ?? "",
+      id: data.id,
       name,
       email,
       careerObjective,
       goals: [],
       skills: [],
+      role: data.role,
       createdAt: new Date(),
     };
 
     setUser(newUser);
+    localStorage.setItem("user", JSON.stringify(newUser));
   };
 
   // ------------------------------------------------------
@@ -134,6 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const updated = { ...user, ...updates };
     setUser(updated);
+    localStorage.setItem("user", JSON.stringify(updated));
   };
 
   // ------------------------------------------------------
@@ -142,6 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     setUser(null);
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
   };
 
   return (

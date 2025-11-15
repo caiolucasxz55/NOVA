@@ -7,4 +7,5 @@ export interface User {
   skills: string[]
   careerObjective: string
   createdAt: Date
+  role: string            // ✅ novo campo
 }

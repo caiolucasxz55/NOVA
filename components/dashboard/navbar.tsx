@@ -29,7 +29,7 @@ export function DashboardNavbar() {
     <nav className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-8">
-          <Link href="/dashboard" className="flex items-center gap-2">
+          <Link href="/chatbot" className="flex items-center gap-2">
             <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
               <Sparkles className="h-6 w-6 text-primary-foreground" />
             </div>
@@ -37,6 +37,12 @@ export function DashboardNavbar() {
           </Link>
 
           <div className="hidden md:flex items-center gap-1">
+            <Link href="/chatbot">
+              <Button variant="ghost" className="gap-2">
+                <Sparkles className="h-4 w-4" />
+                NOVA
+              </Button>
+            </Link>
             <Link href="/dashboard">
               <Button variant="ghost" className="gap-2">
                 <Target className="h-4 w-4" />
