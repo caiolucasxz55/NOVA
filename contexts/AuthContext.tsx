@@ -20,7 +20,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // const API_URL = "http://localhost:8080"; //desenvolvimento local
-const API_URL = "172.172.1.188:8000"; //production
+const API_URL = "https://172.172.1.188:8000"; //production
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);

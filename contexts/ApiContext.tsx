@@ -10,7 +10,7 @@ interface ApiContextType {
 const ApiContext = createContext<ApiContextType | undefined>(undefined);
 
 // const API_URL = "http://localhost:8080/api/chatbot"; //desenvolvimento local
-const API_URL = "172.172.1.188:8000/api/chatbot"; //production
+const API_URL = "https://172.172.1.188:8000/api/chatbot"; //production
 
 export function ApiProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
