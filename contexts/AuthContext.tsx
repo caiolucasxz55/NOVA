@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import type { User } from "@/types/User";
@@ -19,8 +19,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// const API_URL = "http://localhost:8080"; //desenvolvimento local
-const API_URL = "http://172.172.112.144:8000"; //production
+const API_URL = "http://localhost:8080"; // desenvolvimento local
+// const API_URL = "http://172.172.112.144:8000"; // production
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -34,42 +34,88 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const token = localStorage.getItem("token");
 
     if (storedUser && token) {
-      setUser(JSON.parse(storedUser));
-    } else {
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
-    }
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        
+        // BLINDAGEM: Se o usuário salvo não tiver ID válido (cache antigo), força limpeza
+        // Isso resolve o erro "userId ausente" no Chatbot
+        if (!parsedUser.id || parsedUser.id === 0) {
+            console.warn("⚠️ Sessão antiga detectada (sem ID). Forçando logout para atualizar dados.");
+            localStorage.removeItem("user");
+            localStorage.removeItem("token");
+            setUser(null);
+        } else {
+            setUser(parsedUser);
+        }
 
+      } catch (e) {
+        console.error("Erro ao restaurar sessão:", e);
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        setUser(null);
+      }
+    }
     setIsLoading(false);
   }, []);
 
   // ------------------------------------------------------
-  // 🔐 LOGIN — POST /auth/login
+  // 🔐 LOGIN — POST /login
   // ------------------------------------------------------
   const login = async (email: string, password: string) => {
-    const response = await fetch(`${API_URL}/auth/login`, {
+    const response = await fetch(`${API_URL}/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
 
-    if (!response.ok) throw new Error("Credenciais inválidas");
+    if (!response.ok) {
+       try {
+         const err = await response.json();
+         console.error("Login Error Payload:", err);
+       } catch(e) {}
+       throw new Error("Credenciais inválidas ou erro no servidor.");
+    }
 
     const data = await response.json();
+    
+    // DEBUG: Mostra no console o que chegou do backend
+    console.log("Resposta do Login (Debug):", data);
 
-    // token vem assim: data.tokenResponse.token
-    const token = data.token.token;
+    // --- 1. EXTRAÇÃO DO TOKEN ---
+    let token = null;
+    if (data.token && typeof data.token === 'object' && data.token.token) {
+        token = data.token.token;
+    } else if (data.token && typeof data.token === 'string') {
+        token = data.token;
+    } else if (data.accessToken) {
+        token = data.accessToken;
+    }
+
+    if (!token) {
+        console.error("Estrutura inválida recebida:", data);
+        throw new Error("O servidor não retornou um token válido. Verifique o console.");
+    }
 
     localStorage.setItem("token", token);
 
+    // --- 2. EXTRAÇÃO DO NOME (Correção do 'Olá Usuário') ---
+    const foundName = 
+        data.name ||          
+        data.nome ||          
+        data.user?.name ||    
+        data.user?.nome ||    
+        data.username ||      
+        email.split("@")[0];
+
+    // Monta o objeto usuário com ID real vindo do Java
     const loggedUser: User = {
-      id: data.id,
-      name: data.name,
-      email: data.email,
-      careerObjective: data.professionalGoal,
+      id: data.id || data.userId || 0, 
+      name: foundName, 
+      email: data.email || email,
+      careerObjective: data.professionalGoal || data.careerObjective || "", 
       goals: [],
       skills: [],
-      role: data.role,
+      role: data.role || "USER",
       createdAt: new Date(),
     };
 
@@ -78,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   // ------------------------------------------------------
-  // 📝 REGISTER — POST /auth/register
+  // 📝 REGISTER — POST /users
   // ------------------------------------------------------
   const register = async (
     name: string,
@@ -86,38 +132,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string,
     careerObjective: string
   ) => {
-    const response = await fetch(`${API_URL}/auth/register`, {
+    const response = await fetch(`${API_URL}/users`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        nome: name,
+        name: name, 
         email,
         password,
         professionalGoal: careerObjective,
       }),
     });
 
-    if (!response.ok) throw new Error("Erro ao registrar");
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Erro no registro:", errorData);
+      
+      if (errorData.errors && Array.isArray(errorData.errors)) {
+          throw new Error(errorData.errors.join(", "));
+      }
+      throw new Error("Erro ao registrar. Verifique os dados.");
+    }
 
-    const data = await response.json();
-
-    // token também está dentro de data.token.token
-    const token = data.token.token;
-    localStorage.setItem("token", token);
-
-    const newUser: User = {
-      id: data.id,
-      name,
-      email,
-      careerObjective,
-      goals: [],
-      skills: [],
-      role: data.role,
-      createdAt: new Date(),
-    };
-
-    setUser(newUser);
-    localStorage.setItem("user", JSON.stringify(newUser));
+    console.log("Registro OK. Iniciando Login automático...");
+    await login(email, password);
   };
 
   // ------------------------------------------------------
