@@ -13,22 +13,19 @@ interface AuthContextType {
     careerObjective: string
   ) => Promise<void>;
   logout: () => void;
-  updateProfile: (updates: Partial<User>) => void;
+  updateProfile: (updates: Partial<User>) => Promise<void>; // Agora retorna Promise
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_URL = "http://localhost:8080"; // desenvolvimento local
-// const API_URL = "http://172.172.112.144:8000"; // production
+const API_URL = "http://localhost:8080"; 
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ------------------------------------------------------
-  // 🔄 Carrega user do localStorage ao iniciar
-  // ------------------------------------------------------
+  // Init
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     const token = localStorage.getItem("token");
@@ -36,31 +33,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (storedUser && token) {
       try {
         const parsedUser = JSON.parse(storedUser);
-        
-        // BLINDAGEM: Se o usuário salvo não tiver ID válido (cache antigo), força limpeza
-        // Isso resolve o erro "userId ausente" no Chatbot
-        if (!parsedUser.id || parsedUser.id === 0) {
-            console.warn("⚠️ Sessão antiga detectada (sem ID). Forçando logout para atualizar dados.");
+        if (!parsedUser.id) {
             localStorage.removeItem("user");
             localStorage.removeItem("token");
             setUser(null);
         } else {
             setUser(parsedUser);
         }
-
       } catch (e) {
-        console.error("Erro ao restaurar sessão:", e);
         localStorage.removeItem("user");
         localStorage.removeItem("token");
-        setUser(null);
       }
     }
     setIsLoading(false);
   }, []);
 
-  // ------------------------------------------------------
-  // 🔐 LOGIN — POST /login
-  // ------------------------------------------------------
+  // Login
   const login = async (email: string, password: string) => {
     const response = await fetch(`${API_URL}/login`, {
       method: "POST",
@@ -68,53 +56,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify({ email, password }),
     });
 
-    if (!response.ok) {
-       try {
-         const err = await response.json();
-         console.error("Login Error Payload:", err);
-       } catch(e) {}
-       throw new Error("Credenciais inválidas ou erro no servidor.");
-    }
+    if (!response.ok) throw new Error("Credenciais inválidas");
 
     const data = await response.json();
     
-    // DEBUG: Mostra no console o que chegou do backend
-    console.log("Resposta do Login (Debug):", data);
-
-    // --- 1. EXTRAÇÃO DO TOKEN ---
     let token = null;
-    if (data.token && typeof data.token === 'object' && data.token.token) {
-        token = data.token.token;
-    } else if (data.token && typeof data.token === 'string') {
-        token = data.token;
-    } else if (data.accessToken) {
-        token = data.accessToken;
-    }
+    if (data.token && typeof data.token === 'object' && data.token.token) token = data.token.token;
+    else if (data.token && typeof data.token === 'string') token = data.token;
+    else if (data.accessToken) token = data.accessToken;
 
-    if (!token) {
-        console.error("Estrutura inválida recebida:", data);
-        throw new Error("O servidor não retornou um token válido. Verifique o console.");
-    }
+    if (!token) throw new Error("Token inválido");
 
     localStorage.setItem("token", token);
 
-    // --- 2. EXTRAÇÃO DO NOME (Correção do 'Olá Usuário') ---
-    const foundName = 
-        data.name ||          
-        data.nome ||          
-        data.user?.name ||    
-        data.user?.nome ||    
-        data.username ||      
-        email.split("@")[0];
-
-    // Monta o objeto usuário com ID real vindo do Java
     const loggedUser: User = {
-      id: data.id || data.userId || 0, 
-      name: foundName, 
-      email: data.email || email,
-      careerObjective: data.professionalGoal || data.careerObjective || "", 
-      goals: [],
-      skills: [],
+      id: data.id || data.userId, 
+      name: data.name,
+      email: data.email,
+      careerObjective: data.professionalGoal || "",
+      // Inicializa vazio se não vier no login
+      // Para carregar skills reais, o ideal seria um fetch("/users/me")
+      goals: [], 
+      skills: [], 
       role: data.role || "USER",
       createdAt: new Date(),
     };
@@ -123,53 +86,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("user", JSON.stringify(loggedUser));
   };
 
-  // ------------------------------------------------------
-  // 📝 REGISTER — POST /users
-  // ------------------------------------------------------
-  const register = async (
-    name: string,
-    email: string,
-    password: string,
-    careerObjective: string
-  ) => {
+  // Register
+  const register = async (name: string, email: string, password: string, careerObjective: string) => {
     const response = await fetch(`${API_URL}/users`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: name, 
-        email,
-        password,
-        professionalGoal: careerObjective,
-      }),
+      body: JSON.stringify({ name, email, password, professionalGoal: careerObjective }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Erro no registro:", errorData);
-      
-      if (errorData.errors && Array.isArray(errorData.errors)) {
-          throw new Error(errorData.errors.join(", "));
-      }
-      throw new Error("Erro ao registrar. Verifique os dados.");
-    }
-
-    console.log("Registro OK. Iniciando Login automático...");
+    if (!response.ok) throw new Error("Erro ao registrar");
     await login(email, password);
   };
 
-  // ------------------------------------------------------
-  // 🔧 Atualização local do perfil
-  // ------------------------------------------------------
-  const updateProfile = (updates: Partial<User>) => {
+  // --- UPDATE PROFILE (AGORA COM FETCH) ---
+  const updateProfile = async (updates: Partial<User>) => {
     if (!user) return;
-    const updated = { ...user, ...updates };
-    setUser(updated);
-    localStorage.setItem("user", JSON.stringify(updated));
+
+    try {
+        const token = localStorage.getItem("token");
+        
+        // Mapeia para o DTO que o Java espera
+        const payload = {
+            name: updates.name ?? user.name,
+            professionalGoal: updates.careerObjective ?? user.careerObjective,
+            // Envia a lista de strings de skills
+            skills: updates.skills ?? user.skills
+        };
+
+        const response = await fetch(`${API_URL}/users/${user.id}`, {
+            method: "PUT",
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            throw new Error("Falha ao salvar perfil no servidor");
+        }
+
+        // Se deu certo no servidor, atualiza localmente
+        const updated = { ...user, ...updates };
+        setUser(updated);
+        localStorage.setItem("user", JSON.stringify(updated));
+        
+        console.log("Perfil salvo com sucesso no banco!");
+
+    } catch (error) {
+        console.error("Erro ao atualizar perfil:", error);
+        throw error; // Repassa erro para o componente mostrar Toast
+    }
   };
 
-  // ------------------------------------------------------
-  // 🚪 LOGOUT
-  // ------------------------------------------------------
   const logout = () => {
     setUser(null);
     localStorage.removeItem("token");
@@ -177,16 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        login,
-        register,
-        logout,
-        updateProfile,
-        isLoading,
-      }}
-    >
+    <AuthContext.Provider value={{ user, login, register, logout, updateProfile, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
