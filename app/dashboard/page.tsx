@@ -233,7 +233,7 @@ export default function DashboardPage() {
         {/* Botão Nova Meta */}
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-2xl font-semibold">Minhas Metas</h2>
-          <Button onClick={() => handleOpenDialog()} size="lg" className="gap-2 hidden md:flex bg-blue-600 hover:bg-blue-700 text-white">
+          <Button onClick={() => handleOpenDialog()} size="lg" className="gap-2 hidden md:flex bg-blue-600 hover:bg-blue-700 text-white cursor-pointer">
             <Plus className="h-5 w-5" />
             Nova Meta
           </Button>

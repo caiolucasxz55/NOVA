@@ -38,25 +38,25 @@ export function DashboardNavbar() {
 
           <div className="hidden md:flex items-center gap-1">
             <Link href="/chatbot">
-              <Button variant="ghost" className="gap-2">
+              <Button variant="ghost" className="gap-2 cursor-pointer">
                 <Sparkles className="h-4 w-4" />
                 NOVA
               </Button>
             </Link>
             <Link href="/dashboard">
-              <Button variant="ghost" className="gap-2">
+              <Button variant="ghost" className="gap-2 cursor-pointer">
                 <Target className="h-4 w-4" />
                 Metas
               </Button>
             </Link>
             <Link href="/tips">
-              <Button variant="ghost" className="gap-2">
+              <Button variant="ghost" className="gap-2 cursor-pointer">
                 <Lightbulb className="h-4 w-4" />
                 Dicas
               </Button>
             </Link>
             <Link href="/profile">
-              <Button variant="ghost" className="gap-2">
+              <Button variant="ghost" className="gap-2 cursor-pointer">
                 <User className="h-4 w-4" />
                 Perfil
               </Button>
@@ -69,7 +69,7 @@ export function DashboardNavbar() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+              <Button variant="ghost" className="relative h-10 w-10 rounded-full cursor-pointer">
                 <Avatar className="h-10 w-10">
                   <AvatarFallback className="bg-primary text-primary-foreground">
                     {user?.name?.charAt(0).toUpperCase() || "U"}

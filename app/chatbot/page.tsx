@@ -13,10 +13,11 @@ type Message = {
 };
 
 function ChatbotInterface() {
-  const { askChatbot } = useApi();
+  const { askChatbot, getHistory } = useApi();
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const localIdRef = useRef(0);
@@ -24,6 +25,37 @@ function ChatbotInterface() {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  // Carrega o histórico ao montar o componente
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        console.log("📚 Carregando histórico do backend...");
+        const history = await getHistory();
+        
+        if (history && history.length > 0) {
+          // Mapeia o histórico para o formato de Message
+          const formattedMessages: Message[] = history.map((msg, index) => ({
+            id: index + 1,
+            from: msg.from,
+            text: msg.text
+          }));
+          
+          setMessages(formattedMessages);
+          localIdRef.current = formattedMessages.length;
+          console.log("✅ Histórico carregado:", formattedMessages.length, "mensagens");
+        } else {
+          console.log("ℹ️ Nenhum histórico encontrado");
+        }
+      } catch (error) {
+        console.error("❌ Erro ao carregar histórico:", error);
+      } finally {
+        setHistoryLoaded(true);
+      }
+    };
+
+    loadHistory();
+  }, [getHistory]);
 
   useEffect(() => {
     scrollToBottom();
@@ -77,11 +109,12 @@ function ChatbotInterface() {
   };
 
   return (
-    <div>
+    <>
       <DashboardNavbar />
-      <div className="flex flex-col h-[calc(100vh-100px)] max-w-4xl mx-auto bg-white shadow-lg rounded-xl overflow-hidden border border-gray-200 mt-6">
-        {/* Header */}
-        <div className="bg-blue-600 p-4 flex items-center gap-3 text-white shadow-md">
+      <div className="container mx-auto px-4 py-6 h-[calc(100vh-73px)]">
+        <div className="flex flex-col h-full max-w-4xl mx-auto bg-white shadow-lg rounded-xl overflow-hidden border border-gray-200">
+          {/* Header */}
+          <div className="bg-blue-600 p-4 flex items-center gap-3 text-white shadow-md flex-shrink-0">
           <div className="p-2 bg-white/20 rounded-full">
             <Bot size={24} />
           </div>
@@ -93,7 +126,14 @@ function ChatbotInterface() {
 
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
-          {messages.length === 0 && (
+          {!historyLoaded && (
+            <div className="text-center text-gray-400 mt-20">
+              <Loader2 size={48} className="mx-auto mb-2 opacity-50 animate-spin" />
+              <p>Carregando histórico...</p>
+            </div>
+          )}
+          
+          {historyLoaded && messages.length === 0 && (
             <div className="text-center text-gray-400 mt-20">
               <Bot size={48} className="mx-auto mb-2 opacity-50" />
               <p>Olá! Como posso ajudar na sua carreira hoje?</p>
@@ -152,7 +192,7 @@ function ChatbotInterface() {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 bg-white border-t border-gray-100">
+        <div className="p-4 bg-white border-t border-gray-100 flex-shrink-0">
           <form onSubmit={send} className="flex gap-2 items-center">
             <input
               className="flex-1 border border-gray-300 rounded-full px-5 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm"
@@ -164,15 +204,16 @@ function ChatbotInterface() {
 
             <button
               type="submit"
-              className="p-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md flex items-center justify-center"
+              className="p-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md flex items-center justify-center cursor-pointer"
               disabled={loading || input.trim() === ""}
             >
               {loading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
             </button>
           </form>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -180,8 +221,8 @@ export default function ChatbotPage() {
   return (
     <ProtectedRoute>
       <ApiProvider>
-        <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-            <ChatbotInterface />
+        <div className="min-h-screen bg-gradient-to-br from-background via-blue-50/20 to-yellow-50/20">
+          <ChatbotInterface />
         </div>
       </ApiProvider>
     </ProtectedRoute>

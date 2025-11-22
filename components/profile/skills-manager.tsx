@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { X, Plus } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface SkillsManagerProps {
   skills: string[]
@@ -15,11 +16,15 @@ interface SkillsManagerProps {
 
 export function SkillsManager({ skills, onSkillsChange }: SkillsManagerProps) {
   const [newSkill, setNewSkill] = useState("")
+  const [skillType, setSkillType] = useState<"HARD" | "SOFT">("HARD")
 
   const addSkill = () => {
     if (newSkill.trim() && !skills.includes(newSkill.trim())) {
-      onSkillsChange([...skills, newSkill.trim()])
+      // Formato: "nome|tipo" para enviar ao backend depois
+      const skillWithType = `${newSkill.trim()}|${skillType}`
+      onSkillsChange([...skills, skillWithType])
       setNewSkill("")
+      setSkillType("HARD")
     }
   }
 
@@ -44,7 +49,16 @@ export function SkillsManager({ skills, onSkillsChange }: SkillsManagerProps) {
           onKeyPress={handleKeyPress}
           className="flex-1"
         />
-        <Button onClick={addSkill} size="icon" disabled={!newSkill.trim()}>
+        <Select value={skillType} onValueChange={(v) => setSkillType(v as "HARD" | "SOFT")}>
+          <SelectTrigger className="w-[130px] cursor-pointer">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="HARD" className="cursor-pointer">Hard Skill</SelectItem>
+            <SelectItem value="SOFT" className="cursor-pointer">Soft Skill</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button onClick={addSkill} size="icon" disabled={!newSkill.trim()} className="cursor-pointer">
           <Plus className="h-4 w-4" />
         </Button>
       </div>
@@ -53,18 +67,29 @@ export function SkillsManager({ skills, onSkillsChange }: SkillsManagerProps) {
         {skills.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhuma habilidade adicionada ainda.</p>
         ) : (
-          skills.map((skill) => (
-            <Badge key={skill} variant="secondary" className="px-3 py-1.5 text-sm gap-2">
-              {skill}
-              <button
-                onClick={() => removeSkill(skill)}
-                className="hover:text-destructive transition-colors"
-                aria-label={`Remover ${skill}`}
+          skills.map((skill) => {
+            // Divide "nome|tipo" ou só "nome" se for skill antiga
+            const [skillName, skillTypeTag] = skill.includes("|") ? skill.split("|") : [skill, "HARD"]
+            const isHard = skillTypeTag === "HARD"
+            
+            return (
+              <Badge 
+                key={skill} 
+                variant="secondary" 
+                className={`px-3 py-1.5 text-sm gap-2 ${isHard ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-purple-100 text-purple-800 border-purple-200'}`}
               >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))
+                <span className="font-medium">{skillName}</span>
+                <span className="text-xs opacity-70">({isHard ? 'Hard' : 'Soft'})</span>
+                <button
+                  onClick={() => removeSkill(skill)}
+                  className="hover:text-destructive transition-colors cursor-pointer"
+                  aria-label={`Remover ${skillName}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )
+          })
         )}
       </div>
     </div>

@@ -17,7 +17,7 @@ export function EmptyState({ onCreateClick }: EmptyStateProps) {
       <p className="text-muted-foreground mb-6 max-w-md leading-relaxed">
         Comece sua jornada profissional criando sua primeira meta. Defina objetivos claros e acompanhe seu progresso.
       </p>
-      <Button size="lg" onClick={onCreateClick}>
+      <Button size="lg" onClick={onCreateClick} className="cursor-pointer">
         Criar Primeira Meta
       </Button>
     </div>

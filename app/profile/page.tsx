@@ -32,12 +32,21 @@ export default function ProfilePage() {
     }
   }, [user]);
 
-  const handleSave = () => {
-    updateProfile({ skills, careerObjective });
-    toast({
-      title: "Perfil atualizado!",
-      description: "Suas informações foram salvas com sucesso.",
-    });
+  const handleSave = async () => {
+    try {
+      await updateProfile({ skills, careerObjective });
+      toast({
+        title: "✅ Perfil atualizado!",
+        description: "Suas informações foram salvas com sucesso.",
+        variant: "default",
+      });
+    } catch (error) {
+      toast({
+        title: "❌ Erro ao salvar",
+        description: "Não foi possível salvar as alterações. Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleLogout = () => {
@@ -78,7 +87,7 @@ export default function ProfilePage() {
               </div>
 
               {/* Logout */}
-              <Button variant="secondary" onClick={handleLogout} className="flex items-center gap-2">
+              <Button variant="secondary" onClick={handleLogout} className="flex items-center gap-2 cursor-pointer">
                 <LogOut className="h-4 w-4" />
                 Sair
               </Button>
@@ -136,7 +145,7 @@ export default function ProfilePage() {
 
           {/* ---------------- BOTÃO SALVAR ---------------- */}
           <div className="flex justify-end">
-            <Button onClick={handleSave} size="lg" className="gap-2">
+            <Button onClick={handleSave} size="lg" className="gap-2 cursor-pointer">
               <Save className="h-4 w-4" />
               Salvar Alterações
             </Button>

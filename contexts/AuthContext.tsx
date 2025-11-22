@@ -105,12 +105,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
         const token = localStorage.getItem("token");
         
-        // Mapeia para o DTO que o Java espera
+        // Processa skills para enviar ao backend
+        let skillsToSend = updates.skills ?? user.skills;
+        
+        // Se tiver skills, precisa enviar cada uma com POST ao /skills
+        if (updates.skills && updates.skills.length > 0) {
+            // Primeiro, salva as skills individuais
+            for (const skill of updates.skills) {
+                const [skillName, skillType] = skill.includes("|") ? skill.split("|") : [skill, "HARD"];
+                
+                try {
+                    await fetch(`${API_URL}/skills?userId=${user.id}`, {
+                        method: "POST",
+                        headers: { 
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            name: skillName,
+                            type: skillType
+                        }),
+                    });
+                } catch (skillError) {
+                    console.warn("Erro ao salvar skill:", skillName, skillError);
+                }
+            }
+        }
+        
+        // Mapeia para o DTO que o Java espera (sem skills, pois já foram salvas)
+        const professionalGoal = updates.careerObjective ?? user.careerObjective;
         const payload = {
             name: updates.name ?? user.name,
-            professionalGoal: updates.careerObjective ?? user.careerObjective,
-            // Envia a lista de strings de skills
-            skills: updates.skills ?? user.skills
+            professionalGoal: professionalGoal && professionalGoal.trim() !== "" 
+                ? professionalGoal 
+                : "Não definido", // Valor padrão se estiver vazio
         };
 
         const response = await fetch(`${API_URL}/users/${user.id}`, {

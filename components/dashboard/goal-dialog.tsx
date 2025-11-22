@@ -111,10 +111,10 @@ export function GoalDialog({ open, onOpenChange, onSave, goal }: GoalDialogProps
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer">
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={!title.trim()}>
+          <Button onClick={handleSave} disabled={!title.trim()} className="cursor-pointer">
             {goal ? "Salvar" : "Criar Meta"}
           </Button>
         </DialogFooter>

@@ -57,7 +57,7 @@ export function GoalCard({ goal, onEdit, onDelete, onToggleStatus }: GoalCardPro
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={cn("h-6 w-6", statusColors[goal.status])}
+                  className={cn("h-6 w-6 cursor-pointer", statusColors[goal.status])}
                   onClick={() => onToggleStatus(goal.id)}
                 >
                   <StatusIcon className="h-5 w-5" />
@@ -76,7 +76,7 @@ export function GoalCard({ goal, onEdit, onDelete, onToggleStatus }: GoalCardPro
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
+                className="h-8 w-8 hover:bg-primary/10 hover:text-primary cursor-pointer"
                 onClick={() => onEdit(goal)}
                 title="Editar meta"
               >
@@ -85,7 +85,7 @@ export function GoalCard({ goal, onEdit, onDelete, onToggleStatus }: GoalCardPro
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
                 onClick={() => onDelete(goal.id)}
                 title="Deletar meta"
               >
